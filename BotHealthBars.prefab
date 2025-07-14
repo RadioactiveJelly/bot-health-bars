@@ -1,0 +1,132 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4375766393506354169
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4375766393506354170}
+  - component: {fileID: 3250281814230674029}
+  m_Layer: 0
+  m_Name: BotHealthBars
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4375766393506354170
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4375766393506354169}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3250281814230674029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4375766393506354169}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec3b8824308adc64fb1901cef109132a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mutators:
+  - name: Health Bars
+    description: 1.0.0
+    menuImage: {fileID: 2800000, guid: a1392a46e520c254cbca7e4dd6d20b4d, type: 3}
+    mutatorPrefab: {fileID: 4306603971007244642, guid: 7d76c4a96c7436a45b937df97de02498, type: 3}
+    configuration:
+      labels:
+      - id: PrimaryColorLabel
+        displayName: Primary Color
+        orderPriority: 100
+      - id: SecondaryColorLabel
+        displayName: Secondary Color
+        orderPriority: 200
+      - id: colorDescription
+        displayName: Primary and secondary colors are reversed for allied health
+          bars!
+        orderPriority: 300
+      integers: []
+      floats:
+      - id: HealthBarLifetime
+        displayName: Lifetime
+        orderPriority: 1
+        value: 4
+      - id: AlliedHealthBarMaxDistance
+        displayName: Allied Health Bar Max Distance
+        orderPriority: 4
+        value: 50
+      ranges:
+      - id: PrimaryR
+        displayName: <color=red>R</color>
+        orderPriority: 101
+        value:
+          value: 226
+          min: 0
+          max: 255
+          wholeNumbers: 1
+      - id: PrimaryG
+        displayName: <color=green>G</color>
+        orderPriority: 102
+        value:
+          value: 39
+          min: 0
+          max: 255
+          wholeNumbers: 1
+      - id: PrimaryB
+        displayName: <color=blue>B</color>
+        orderPriority: 103
+        value:
+          value: 0
+          min: 0
+          max: 255
+          wholeNumbers: 1
+      - id: SecondaryR
+        displayName: <color=red>R</color>
+        orderPriority: 201
+        value:
+          value: 255
+          min: 0
+          max: 255
+          wholeNumbers: 1
+      - id: SecondaryG
+        displayName: <color=green>G</color>
+        orderPriority: 202
+        value:
+          value: 255
+          min: 0
+          max: 255
+          wholeNumbers: 1
+      - id: SecondaryB
+        displayName: <color=blue>B</color>
+        orderPriority: 203
+        value:
+          value: 255
+          min: 0
+          max: 255
+          wholeNumbers: 1
+      strings: []
+      bools:
+      - id: UseTeamColors
+        displayName: Use Team Colors
+        orderPriority: 2
+        value: 0
+      - id: ShowAlliedHealthBars
+        displayName: Show Allied Health Bars
+        orderPriority: 3
+        value: 1
+      dropdowns: []
