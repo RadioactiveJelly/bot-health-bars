@@ -1,7 +1,10 @@
 -- Register the behaviour
 behaviour("BotHealthBarManager")
 
-function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedHealthBarDistance, useTeamColors, alliedHealthBars, primaryColor, secondaryColor)
+function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedHealthBarDistance, useTeamColors, alliedHealthBars, primaryColor, secondaryColor,showSquadHealthBars)
+	self.gameObject.name = "BotHealthBarManager"
+	local minimumJellyLibVersion = "0.2.0"
+	
 	GameEvents.onPlayerDealtDamage.AddListener(self,"OnPlayerDealtDamage")
 
 	local actorsToTrack = nil
@@ -22,11 +25,21 @@ function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedH
 	
 	if ExtendedGameEvents then
 		ExtendedGameEvents.onMedipackResupply.AddListener(self, "OnMedipackResupply")
+		if JellyLib and JellyLib.VersionCompare(minimumJellyLibVersion) >= 0 then
+			ExtendedGameEvents.onBeforeActorHealed.AddListener(self, "OnActorHealed")
+		else
+			local foundVersion = "0.1.1"
+			if JellyLib then
+				foundVersion = JellyLib.GetPluginVersion()
+			end
+			print("<color=yellow>WARNING: [BotHealthBarManager.Init] Outdated version of JellyLib detected. Some functions may not work fully. Expected version: " .. minimumJellyLibVersion .. " Found: " .. foundVersion .. "</color>")
+		end
 	end
 
 	self.healthBarLifetime = healthBarLifetime
 	self.timePercentForFade = timePercentForFade
 	self.alliedHealthBarDistance = alliedHealthBarDistance
+	self.showSquadHealthBars = showSquadHealthBars
 
 	self.activeHealthBars = {}
 	self.healthBarStack = {}
@@ -45,12 +58,23 @@ function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedH
 		self.secondaryColor = self.targets.DataContainer.GetColor("SecondaryColor")
 	end
 
-	
 	self.useTeamColors = useTeamColors
 	self.alliedHealthBars = alliedHealthBars
 end
 
 function BotHealthBarManager:Update()
+	if Player.squad and self.showSquadHealthBars then
+		for i = 1, #Player.squad.members, 1 do
+			local actor = Player.squad.members[i]
+			if not actor.isPlayer then
+				self:ShowHealthBar(actor)
+			end
+		end
+	end
+
+	self:UpdateCamera()
+	
+	
 	for actorId, healthBar in pairs(self.activeHealthBars) do
 		if healthBar:IsDead() then
 			local actor = ActorManager.actors[actorId]
@@ -59,13 +83,35 @@ function BotHealthBarManager:Update()
 	end
 end
 
+function BotHealthBarManager:UpdateCamera()
+	if PlayerCamera == nil then return end
+	if PlayerCamera.activeCamera == nil then return end
+	local distance = 15
+
+	if Player.actor.activeWeapon and Player.actor.activeWeapon.isAiming then
+		distance = Mathf.Infinity
+	end
+
+	local ray = Ray(PlayerCamera.activeCamera.transform.position, PlayerCamera.activeCamera.transform.forward)
+	local hit = Physics.Raycast(ray, distance, RaycastTarget.ProjectileHit)
+
+	if hit == nil then return end
+	if hit.transform.root == nil then return end
+
+	local actor = hit.transform.root.gameObject.GetComponent(Actor)
+	if actor == nil then return end
+	if actor.isDead then return end
+
+	self:ShowHealthBar(actor)
+end
+
 function BotHealthBarManager:OnPlayerDealtDamage(damageInfo, hitInfo)
 	local actor = hitInfo.actor
 	if actor == nil then return end
 	if not ActorManager.ActorsCanSeeEachOther(Player.actor, actor) then return end
 	if actor.team == Player.team and not self.alliedHealthBars then return end
 
-	self:SpawnHealthBar(actor)
+	self:ShowHealthBar(actor)
 end
 
 function BotHealthBarManager:OnTakeDamage(actor,source,info)
@@ -74,10 +120,10 @@ function BotHealthBarManager:OnTakeDamage(actor,source,info)
 	if Player.actor and ActorManager.ActorDistanceToPlayer(actor) > self.alliedHealthBarDistance then return end
 	--if not ActorManager.ActorsCanSeeEachOther(Player.actor, actor) then return end
 
-	self:SpawnHealthBar(actor)
+	self:ShowHealthBar(actor)
 end
 
-function BotHealthBarManager:SpawnHealthBar(actor)
+function BotHealthBarManager:ShowHealthBar(actor)
 	local activeHealthBar = self.activeHealthBars[actor.actorIndex]
 	if activeHealthBar then
 		activeHealthBar:Refresh(self.healthBarLifetime)
@@ -94,8 +140,18 @@ function BotHealthBarManager:SpawnHealthBar(actor)
 	end
 	
 	self.activeHealthBars[actor.actorIndex] = healthBar
-	self.totalHealthBars  = self.totalHealthBars + 1
-	healthBar.stackId = self.totalHealthBars
+
+	if self.statusEffectSystem then
+		local effects = self.statusEffectSystem.activeEffects[actor.actorIndex]
+		if effects then
+			for effectId, effect in pairs(effects) do
+				self:AddEffectIcon(actor,effect)
+			end
+		end
+	end
+
+	--self.totalHealthBars  = self.totalHealthBars + 1
+	--healthBar.stackId = self.totalHealthBars
 
 	--table.insert(self.healthBarStack, self.totalHealthBars)
 end
@@ -134,7 +190,7 @@ function BotHealthBarManager:OnMedipackResupply(sourceActor, targetActor)
 	if sourceActor.team ~= targetActor.team then return end
 	
 	if sourceActor.isPlayer and ActorManager.ActorsCanSeeEachOther(Player.actor, targetActor) then
-		self:SpawnHealthBar(targetActor)
+		self:ShowHealthBar(targetActor)
 	else
 		self:RefreshHealthBar(targetActor)
 	end
@@ -154,4 +210,59 @@ function BotHealthBarManager:GetTeamColor(team)
 			return self.targets.DataContainer.GetColor("RedColor")
 		end
 	end
+end
+
+function BotHealthBarManager:EnableStatusEffectCompat(statusEffectSystem, statusEffectDatabase)
+	self.statusEffectSystem = statusEffectSystem
+	self.statusEffectDatabase = statusEffectDatabase
+
+	self.statusEffectSystem:SubscribeToEffectAddedEvent(self,self:OnEffectAdded())
+	self.statusEffectSystem:SubscribeToEffectRemovedEvent(self,self:OnEffectRemoved())
+end
+
+function BotHealthBarManager:OnEffectAdded()
+	return function(actor, effect)
+		if actor.isPlayer then return end
+
+		self:ShowHealthBar(actor)
+		self:AddEffectIcon(actor,effect)
+	end
+end
+
+function BotHealthBarManager:OnEffectRemoved()
+	return function(actor, effect)
+		if actor.isPlayer then return end
+
+		local healthBar = self.activeHealthBars[actor.actorIndex]
+		if healthBar == nil then return end
+
+		healthBar:RemoveEffectIcon(effect)
+	end
+end
+
+function BotHealthBarManager:AddEffectIcon(actor, effect)
+	if actor.isPlayer then return end
+
+	local healthBar = self.activeHealthBars[actor.actorIndex]
+	if healthBar == nil then return end
+
+	if not self.targets.DataContainer.HasObject("StatusEffectIcon") then return end
+
+	local iconPrefab = self.targets.DataContainer.GetGameObject("StatusEffectIcon")
+	if iconPrefab == nil then return end
+
+	local iconInstance = GameObject.Instantiate(iconPrefab)
+	local sprite = self.statusEffectDatabase:GetEffectSprite(effect.effectData, true)
+	local icon = iconInstance.GetComponent(BotStatusEffectIcon)
+	icon:Initialize(effect, sprite)
+
+	healthBar:AddEffectIcon(effect,icon)
+end
+
+function BotHealthBarManager:OnActorHealed(healInfo)	
+	if healInfo.sourceActor == nil then return end
+	if not healInfo.sourceActor.isPlayer then return end
+	if healInfo.targetActor.isPlayer then return end
+
+	self:ShowHealthBar(healInfo.targetActor)
 end

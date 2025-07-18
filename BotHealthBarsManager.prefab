@@ -89,6 +89,8 @@ MonoBehaviour:
   gameObjects:
   - id: HealthBar
     value: {fileID: 5247704607718773635, guid: 388327af6daadda46b557ed4db24ae05, type: 3}
+  - id: StatusEffectIcon
+    value: {fileID: 7594494742055914680, guid: e035b865300b75043a326d33a50dff3d, type: 3}
   skins: []
   weaponEntries: []
 --- !u!1 &497948099304127965

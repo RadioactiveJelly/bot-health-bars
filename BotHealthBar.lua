@@ -16,6 +16,7 @@ function BotHealthBar:Initialize(actor, lifetime, primaryColor, secondaryColor, 
 	self.richTextColorTag = ColorScheme.RichTextColorTag(teamColor)
 	self.targets.BotName.text = self.richTextColorTag .. actor.name .. "</color>"
 	self.targets.TeamIndicator.color = teamColor
+	self.targets.SquadIndicator.color = teamColor
 	self.targets.DeathIndicator.color = teamColor
 
 	self.timePercentForFade = timePercentForFade
@@ -34,7 +35,10 @@ function BotHealthBar:Update()
 	else
 		self.lifetime = self.lifetime - Time.deltaTime * 3
 	end
-	
+
+	local partOfPlayerSquad = self.actor.squad == Player.actor.squad
+	self.targets.TeamIndicator.gameObject.SetActive(not partOfPlayerSquad and not self.actor.isDead)
+	self.targets.SquadIndicator.gameObject.SetActive(partOfPlayerSquad and not self.actor.isDead)
 
 	local currentHealthScale = self.actor.health/self.actor.maxHealth
 	if currentHealthScale < 0 then currentHealthScale = 0 end
@@ -98,6 +102,7 @@ end
 
 function BotHealthBar:OnBotDied()
 	self.targets.TeamIndicator.gameObject.SetActive(false)
+	self.targets.SquadIndicator.gameObject.SetActive(false)
 	self.targets.DeathIndicator.gameObject.SetActive(true)
 	self.targets.BotName.text = self.richTextColorTag .. "<s>" .. self.actor.name .. "</s></color>" 
 
@@ -126,4 +131,26 @@ function BotHealthBar:UpdateFill()
 
 	self.previousHealthScale = healthScale
 	self.targets.CanvasGroup.alpha = 1
+end
+
+function BotHealthBar:AddEffectIcon(effect, icon)
+	if effect == nil then return end
+	if icon == nil then return end
+	if self.activeIcons == nil then self.activeIcons = {} end
+	--if effect.effectData == nil then return end
+
+	icon.transform.SetParent(self.targets.EffectTray.transform)
+	self.activeIcons[effect.effectData.id] = icon
+end
+
+function BotHealthBar:RemoveEffectIcon(effect)
+	if self.activeIcons == nil then return end
+	if effect == nil then return end
+
+	local icon = self.activeIcons[effect.effectData.id]
+	if icon == nil then return end
+		
+	GameObject.Destroy(icon.gameObject)
+
+	self.activeIcons[effect.effectData.id] = nil
 end
