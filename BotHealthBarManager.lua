@@ -96,9 +96,8 @@ function BotHealthBarManager:UpdateCamera()
 	local hit = Physics.Raycast(ray, distance, RaycastTarget.ProjectileHit)
 
 	if hit == nil then return end
-	if hit.transform.root == nil then return end
 
-	local actor = hit.transform.root.gameObject.GetComponent(Actor)
+	local actor = hit.collider.gameObject.GetComponentInParent(Actor)
 	if actor == nil then return end
 	if actor.isDead then return end
 

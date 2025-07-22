@@ -90,6 +90,7 @@ end
 
 function BotHealthBar:Refresh(lifetime)
 	self.lifetime = lifetime
+	self.targets.CanvasGroup.alpha = 1
 end
 
 function BotHealthBar:CleanUp()
