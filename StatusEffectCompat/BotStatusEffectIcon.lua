@@ -14,3 +14,7 @@ function BotStatusEffectIcon:Update()
 	self.targets.Timer.fillAmount = t
 	self.targets.Timer.color = Color.Lerp(self.fullColor, self.emptyColor, 1 - t)
 end
+
+function BotStatusEffectIcon:Cleanup()
+	self.effect = nil
+end

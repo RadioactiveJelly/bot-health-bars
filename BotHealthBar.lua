@@ -93,8 +93,20 @@ function BotHealthBar:Refresh(lifetime)
 	self.targets.CanvasGroup.alpha = 1
 end
 
-function BotHealthBar:CleanUp()
+function BotHealthBar:CleanUp(effectIconPool)
 	PlayerHud.RemoveElementTracking(self.trackerId)
+	self.targets.CanvasGroup.alpha = 0
+	self.actor = nil
+	self.targets.TeamIndicator.gameObject.SetActive(false)
+	self.targets.SquadIndicator.gameObject.SetActive(false)
+	self.targets.DeathIndicator.gameObject.SetActive(false)
+
+	if effectIconPool and self.activeIcons then
+		for k, v in pairs(self.activeIcons) do
+			effectIconPool:pool(v)
+		end
+	end
+	self.activeIcons = nil
 end
 
 function BotHealthBar:IsDead()
@@ -134,6 +146,12 @@ function BotHealthBar:UpdateFill()
 	self.targets.CanvasGroup.alpha = 1
 end
 
+function BotHealthBar:IsEffectIconActive(effect)
+	if self.activeIcons == nil then return false end
+	
+	return self.activeIcons[effect.effectData.id] ~= nil
+end
+
 function BotHealthBar:AddEffectIcon(effect, icon)
 	if effect == nil then return end
 	if icon == nil then return end
@@ -145,13 +163,13 @@ function BotHealthBar:AddEffectIcon(effect, icon)
 end
 
 function BotHealthBar:RemoveEffectIcon(effect)
-	if self.activeIcons == nil then return end
-	if effect == nil then return end
+	if self.activeIcons == nil then return nil end
+	if effect == nil then return nil end
 
 	local icon = self.activeIcons[effect.effectData.id]
-	if icon == nil then return end
-		
-	GameObject.Destroy(icon.gameObject)
+	if icon == nil then return nil end
 
 	self.activeIcons[effect.effectData.id] = nil
+
+	return icon
 end

@@ -36,6 +36,22 @@ function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedH
 		end
 	end
 
+	--Object pooling here: https://github.com/RadioactiveJelly/rs-utilities/blob/master/Pooling/PoolManager.lua
+	self.prefab = self.targets.DataContainer.GetGameObject("HealthBar")
+	if _poolManager == nil then
+		local managerPrefab = self.targets.DataContainer.GetGameObject("PoolManager")
+		GameObject.Instantiate(managerPrefab)
+	end
+
+	--Initialize health bar pool
+	self.healthBarPool = _poolManager:GetPool(self.prefab.name)
+	if not self.healthBarPool.initialized then
+		--We initialize the pool to use our projectile prefab and the Table prototype "BotHealthBar"
+		self.healthBarPool:initialize(self.prefab, "BotHealthBar")
+		--Fill the pool with instances to frontload the Instantiation work needed. Instantiations won't happen unless the pool is depleted.
+		self.healthBarPool:prePool(#ActorManager.actors)
+	end
+
 	self.healthBarLifetime = healthBarLifetime
 	self.timePercentForFade = timePercentForFade
 	self.alliedHealthBarDistance = alliedHealthBarDistance
@@ -44,8 +60,7 @@ function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedH
 	self.activeHealthBars = {}
 	self.healthBarStack = {}
 	self.totalHealthBars = 0
-	self.prefab = self.targets.DataContainer.GetGameObject("HealthBar")
-
+	
 	if primaryColor then
 		self.primaryColor = primaryColor
 	else
@@ -72,15 +87,16 @@ function BotHealthBarManager:Update()
 		end
 	end
 
-	self:UpdateCamera()
-	
-	
 	for actorId, healthBar in pairs(self.activeHealthBars) do
 		if healthBar:IsDead() then
 			local actor = ActorManager.actors[actorId]
 			self:RemoveHealthBar(actor)
 		end
 	end
+end
+
+function BotHealthBarManager:LateUpdate()
+	self:UpdateCamera()
 end
 
 function BotHealthBarManager:UpdateCamera()
@@ -129,8 +145,7 @@ function BotHealthBarManager:ShowHealthBar(actor)
 		return 
 	end
 
-	local healthBarObject = GameObject.Instantiate(self.prefab)
-	local healthBar = healthBarObject.GetComponent(BotHealthBar)
+	local healthBar = self.healthBarPool:requestObject()
 	healthBar.transform.SetParent(self.targets.Canvas.transform)
 	if actor.team ~= Player.actor.team then
 		healthBar:Initialize(actor, self.healthBarLifetime, self.primaryColor, self.secondaryColor, self:GetTeamColor(actor.team), self.timePercentForFade)
@@ -148,11 +163,6 @@ function BotHealthBarManager:ShowHealthBar(actor)
 			end
 		end
 	end
-
-	--self.totalHealthBars  = self.totalHealthBars + 1
-	--healthBar.stackId = self.totalHealthBars
-
-	--table.insert(self.healthBarStack, self.totalHealthBars)
 end
 
 function BotHealthBarManager:RemoveHealthBar(actor)
@@ -160,16 +170,9 @@ function BotHealthBarManager:RemoveHealthBar(actor)
 	local healthBarToRemove = self.activeHealthBars[actorId]
 	if healthBarToRemove == nil then return end
 
-	healthBarToRemove:CleanUp()
+	healthBarToRemove:CleanUp(self.effectIconPool)
 
-	--Remove healthbar from stack and shift all elements above it in the stack down.
-	--[[table.remove(self.healthBarStack, healthBarToRemove.stackId)
-	for i = healthBarToRemove.stackId, #self.healthBarStack, 1 do
-		local healthBar = self.healthBarStack[i]
-		healthBar.stackId = healthBar.stackId - 1
-	end]]--
-
-	GameObject.Destroy(healthBarToRemove.gameObject)
+	self.healthBarPool:pool(healthBarToRemove)
 	self.totalHealthBars = self.totalHealthBars - 1
 	self.activeHealthBars[actorId] = nil
 end
@@ -217,6 +220,14 @@ function BotHealthBarManager:EnableStatusEffectCompat(statusEffectSystem, status
 
 	self.statusEffectSystem:SubscribeToEffectAddedEvent(self,self:OnEffectAdded())
 	self.statusEffectSystem:SubscribeToEffectRemovedEvent(self,self:OnEffectRemoved())
+
+	--Create a pool for icons
+	self.effctIconPrefab = self.targets.DataContainer.GetGameObject("StatusEffectIcon")
+	self.effectIconPool = _poolManager:GetPool(self.effctIconPrefab.name)
+	if not self.effectIconPool.initialized then
+		self.effectIconPool:initialize(self.effctIconPrefab, "BotStatusEffectIcon")
+		self.effectIconPool:prePool(#ActorManager.actors * 2)
+	end
 end
 
 function BotHealthBarManager:OnEffectAdded()
@@ -235,7 +246,10 @@ function BotHealthBarManager:OnEffectRemoved()
 		local healthBar = self.activeHealthBars[actor.actorIndex]
 		if healthBar == nil then return end
 
-		healthBar:RemoveEffectIcon(effect)
+		local removedIcon = healthBar:RemoveEffectIcon(effect, self.effectIconPool)
+		if removedIcon then
+			self.effectIconPool:pool(removedIcon)
+		end
 	end
 end
 
@@ -245,23 +259,20 @@ function BotHealthBarManager:AddEffectIcon(actor, effect)
 	local healthBar = self.activeHealthBars[actor.actorIndex]
 	if healthBar == nil then return end
 
-	if not self.targets.DataContainer.HasObject("StatusEffectIcon") then return end
+	if healthBar:IsEffectIconActive(effect) then return end
 
-	local iconPrefab = self.targets.DataContainer.GetGameObject("StatusEffectIcon")
-	if iconPrefab == nil then return end
-
-	local iconInstance = GameObject.Instantiate(iconPrefab)
+	local iconInstance = self.effectIconPool:requestObject()
 	local sprite = self.statusEffectDatabase:GetEffectSprite(effect.effectData, true)
-	local icon = iconInstance.GetComponent(BotStatusEffectIcon)
-	icon:Initialize(effect, sprite)
+	iconInstance:Initialize(effect,sprite)
 
-	healthBar:AddEffectIcon(effect,icon)
+	healthBar:AddEffectIcon(effect,iconInstance)
 end
 
 function BotHealthBarManager:OnActorHealed(healInfo)	
 	if healInfo.sourceActor == nil then return end
 	if not healInfo.sourceActor.isPlayer then return end
 	if healInfo.targetActor.isPlayer then return end
+	if healInfo.targetActor.health >= healInfo.targetActor.maxHealth then return end
 
 	self:ShowHealthBar(healInfo.targetActor)
 end
