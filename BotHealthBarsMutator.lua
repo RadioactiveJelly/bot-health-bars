@@ -15,8 +15,9 @@ function BotHealthBarsMutator:Start()
 	local primaryColor = Color(self.script.mutator.GetConfigurationRange("PrimaryR")/255, self.script.mutator.GetConfigurationRange("PrimaryG")/255, self.script.mutator.GetConfigurationRange("PrimaryB")/255, 1)
 	local secondaryColor = Color(self.script.mutator.GetConfigurationRange("SecondaryR")/255, self.script.mutator.GetConfigurationRange("SecondaryG")/255, self.script.mutator.GetConfigurationRange("SecondaryB")/255, 1)
 	local showSquadHealthBars = self.script.mutator.GetConfigurationBool("ShowSquadHealthBars")
+	local showHealthBarsOnLook = self.script.mutator.GetConfigurationBool("ShowHealthBarsOnLook")
 
-	mainBehaviour:Init(healthBarLifetime, timePercentForFade, alliedHealthBarDistance, useTeamColors, showAlliedHealthBars, primaryColor, secondaryColor, showSquadHealthBars)
+	mainBehaviour:Init(healthBarLifetime, timePercentForFade, alliedHealthBarDistance, useTeamColors, showAlliedHealthBars, primaryColor, secondaryColor, showSquadHealthBars, showHealthBarsOnLook)
 
 	self.mainBehaviour = mainBehaviour
 end

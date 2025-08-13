@@ -133,4 +133,8 @@ MonoBehaviour:
         displayName: Show Squad Health Bars
         orderPriority: 5
         value: 1
+      - id: ShowHealthBarsOnLook
+        displayName: Show Health Bars On Look
+        orderPriority: 6
+        value: 1
       dropdowns: []

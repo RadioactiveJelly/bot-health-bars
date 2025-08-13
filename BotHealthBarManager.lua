@@ -1,7 +1,7 @@
 -- Register the behaviour
 behaviour("BotHealthBarManager")
 
-function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedHealthBarDistance, useTeamColors, alliedHealthBars, primaryColor, secondaryColor,showSquadHealthBars)
+function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedHealthBarDistance, useTeamColors, alliedHealthBars, primaryColor, secondaryColor,showSquadHealthBars, showHealthBarsOnLook)
 	self.gameObject.name = "BotHealthBarManager"
 	local minimumJellyLibVersion = "0.2.0"
 	
@@ -75,6 +75,10 @@ function BotHealthBarManager:Init(healthBarLifetime, timePercentForFade, alliedH
 
 	self.useTeamColors = useTeamColors
 	self.alliedHealthBars = alliedHealthBars
+
+	self.showHealthBarsOnLook = showHealthBarsOnLook
+	self.maxDistanceForLookAt = 15
+	self.maxDistanceForLookAtEnemy = 30
 end
 
 function BotHealthBarManager:Update()
@@ -99,11 +103,14 @@ function BotHealthBarManager:LateUpdate()
 	self:UpdateCamera()
 end
 
+--TODO: Use RaycastActor once stable moves to EA32
 function BotHealthBarManager:UpdateCamera()
+	if not self.showHealthBarsOnLook then return end
 	if PlayerCamera == nil then return end
 	if PlayerCamera.activeCamera == nil then return end
-	local distance = 15
+	local distance = self.maxDistanceForLookAt
 
+	--Extend the limit when aiming down sights.
 	if Player.actor.activeWeapon and Player.actor.activeWeapon.isAiming then
 		distance = Mathf.Infinity
 	end
@@ -116,6 +123,9 @@ function BotHealthBarManager:UpdateCamera()
 	local actor = hit.collider.gameObject.GetComponentInParent(Actor)
 	if actor == nil then return end
 	if actor.isDead then return end
+
+	--If the actor is an enemy and the raycast distance is beyond the limit, do not show the HP bar.
+	if actor.team ~= Player.team and hit.distance >= self.maxDistanceForLookAtEnemy then return end
 
 	self:ShowHealthBar(actor)
 end
@@ -131,6 +141,7 @@ end
 
 function BotHealthBarManager:OnTakeDamage(actor,source,info)
 	if not self.alliedHealthBars then return end
+	if source == nil then return end
 	if Player.actor ~= nil and source.isPlayer then return end
 	if Player.actor and ActorManager.ActorDistanceToPlayer(actor) > self.alliedHealthBarDistance then return end
 	--if not ActorManager.ActorsCanSeeEachOther(Player.actor, actor) then return end
